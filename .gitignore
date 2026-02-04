@@ -1,0 +1,35 @@
+# Zephyr / west (workspace lives under zephyr/; ignore if created at root by mistake)
+build/
+.west/
+zephyr/
+modules/
+tools/
+
+# Python venv (created by scripts/setup_zephyr.sh)
+.venv/
+venv/
+*.pyc
+__pycache__/
+*.pyo
+
+# Rust
+rust/target/
+
+# Zephyr SDK (if installed under zephyr/sdk)
+sdk/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup / patch
+*.orig
+*.rej
+.*.bak
