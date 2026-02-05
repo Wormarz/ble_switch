@@ -92,5 +92,66 @@ pip install -r zephyr/scripts/requirements-base.txt
 echo "Installing Python dependencies (west packages) ..."
 west packages pip --install
 
-echo "Done. To use: source $ZEPHYR_DIR/.venv/bin/activate && export ZEPHYR_BASE=$ZEPHYR_DIR/zephyr"
-echo "Optional: install Zephyr SDK to $ZEPHYR_DIR/sdk and set ZEPHYR_SDK_INSTALL_DIR=$ZEPHYR_DIR/sdk"
+# Install Zephyr SDK to zephyr/sdk (for nRF52: arm-zephyr-eabi toolchain)
+SDK_DIR="$ZEPHYR_DIR/sdk"
+SDK_VERSION="0.16.6"
+if [ ! -f "$SDK_DIR/sdk_version" ] && [ ! -f "$SDK_DIR/cmake/Zephyr-sdkConfig.cmake" ]; then
+  echo "Downloading and installing Zephyr SDK $SDK_VERSION to $SDK_DIR ..."
+  case "$(uname -s)" in
+    Linux)  OS=linux ;;
+    Darwin) OS=macos ;;
+    *) echo "Unsupported OS for SDK download. Install Zephyr SDK manually."; OS= ;;
+  esac
+  if [ -n "$OS" ]; then
+    ARCH=$(uname -m)
+    [ "$ARCH" = "x86_64" ] && ARCH=x86_64
+    [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ] && ARCH=aarch64
+    if [ "$OS" = "linux" ] && [ "$ARCH" = "x86_64" ]; then
+      SDK_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VERSION}/zephyr-sdk-${SDK_VERSION}_linux-x86_64.tar.xz"
+    elif [ "$OS" = "linux" ] && [ "$ARCH" = "aarch64" ]; then
+      SDK_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VERSION}/zephyr-sdk-${SDK_VERSION}_linux-aarch64.tar.xz"
+    elif [ "$OS" = "macos" ] && [ "$ARCH" = "x86_64" ]; then
+      SDK_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VERSION}/zephyr-sdk-${SDK_VERSION}_macos-x86_64.tar.xz"
+    elif [ "$OS" = "macos" ] && [ "$ARCH" = "aarch64" ]; then
+      SDK_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VERSION}/zephyr-sdk-${SDK_VERSION}_macos-aarch64.tar.xz"
+    else
+      echo "No prebuilt SDK for $OS/$ARCH. Install manually to $SDK_DIR."
+      SDK_URL=""
+    fi
+    if [ -n "$SDK_URL" ]; then
+      mkdir -p "$SDK_DIR"
+      SDK_TAR="/tmp/zephyr-sdk-${SDK_VERSION}.tar.xz"
+      for attempt in 1 2 3; do
+        if wget -q -O "$SDK_TAR" "$SDK_URL" 2>/dev/null || curl -sL -o "$SDK_TAR" "$SDK_URL" 2>/dev/null; then
+          break
+        fi
+        echo "Download attempt $attempt failed, retrying in 10s ..."
+        rm -f "$SDK_TAR"
+        sleep 10
+      done
+      if [ -f "$SDK_TAR" ]; then
+        tar -xJf "$SDK_TAR" -C "$SDK_DIR" --strip-components=1
+        rm -f "$SDK_TAR"
+        if [ -x "$SDK_DIR/setup.sh" ]; then
+          echo "Running SDK setup.sh (install arm-zephyr-eabi for nRF52) ..."
+          if "$SDK_DIR/setup.sh" -t arm-zephyr-eabi -y 2>/dev/null || yes "" | "$SDK_DIR/setup.sh" -t arm-zephyr-eabi 2>/dev/null; then
+            echo "Zephyr SDK installed."
+          else
+            echo "Run manually if needed: $SDK_DIR/setup.sh -t arm-zephyr-eabi"
+          fi
+        fi
+      else
+        echo "SDK download failed. Install manually: see README."
+      fi
+    fi
+  fi
+else
+  echo "Zephyr SDK already present at $SDK_DIR (or skipped)."
+fi
+
+echo ""
+echo "Done. To use:"
+echo "  source $ZEPHYR_DIR/.venv/bin/activate"
+echo "  export ZEPHYR_BASE=$ZEPHYR_DIR/zephyr"
+echo "  export ZEPHYR_SDK_INSTALL_DIR=$SDK_DIR   # if SDK was installed"
+echo "  ./scripts/build.sh"

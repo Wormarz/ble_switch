@@ -31,21 +31,41 @@ Zephyr source, `.west`, and modules live **only under `zephyr/`**. Run the scrip
 
 ## Build
 
-1. Build the Rust static library:
+1. Install ARM toolchain if needed: `sudo apt install gcc-arm-none-eabi` (Debian/Ubuntu).
+
+2. Build the Rust static library:
    ```bash
    cd rust && cargo build --release --target thumbv7em-none-eabihf && cd ..
    ```
-2. Build the Zephyr application (from project root, with venv active and env vars above set):
+
+3. Build the Zephyr application (from project root):
    ```bash
-   cd zephyr && west build -b nrf52840dk_nrf52840 ..
+   ./scripts/build.sh
    ```
-   **Using system ARM GCC (no Zephyr SDK):**
+   The script uses the **system ARM GCC** by default. If `ZEPHYR_SDK_INSTALL_DIR` is set, it uses the **Zephyr SDK** toolchain instead. Optional: `BOARD=nrf52840dk/nrf52840 ./scripts/build.sh` or `./scripts/build.sh --pristine`.
+
+### 使用 Zephyr SDK 工具链
+
+1. **安装 Zephyr SDK**（以 Linux x86_64 为例）：
+   - 下载：<https://github.com/zephyrproject-rtos/sdk-ng/releases>，选择与 Zephyr 版本匹配的 SDK（例如 `zephyr-sdk-0.16.x_linux-x86_64.tar.xz`）。
+   - 解压到任意目录，例如工程内：
+     ```bash
+     mkdir -p zephyr/sdk
+     tar -xJf zephyr-sdk-0.16.*_linux-x86_64.tar.xz -C zephyr/sdk --strip-components=1
+     ```
+   - 运行 SDK 安装脚本（安装工具链、QEMU 等）：
+     ```bash
+     zephyr/sdk/setup.sh
+     ```
+   - 按提示选择要安装的架构（nRF52 选 ARM）。
+
+2. **构建时使用 SDK**：设置 `ZEPHYR_SDK_INSTALL_DIR` 后执行构建脚本即可：
    ```bash
-   sudo apt install gcc-arm-none-eabi   # Debian/Ubuntu
-   source zephyr/.venv/bin/activate
-   source scripts/env.sh               # sets ZEPHYR_BASE and ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb
-   cd zephyr && west build -b nrf52840dk_nrf52840 ..
+   export ZEPHYR_SDK_INSTALL_DIR=$(pwd)/zephyr/sdk    # 若 SDK 在工程内
+   # 或 export ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk-0.16.0
+   ./scripts/build.sh
    ```
+   也可在 `~/.bashrc` 或 `scripts/env.sh` 中写死 `export ZEPHYR_SDK_INSTALL_DIR=...`，之后直接 `./scripts/build.sh` 就会用 SDK。
 
 ## Flash
 
