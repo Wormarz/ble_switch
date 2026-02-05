@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.20.0)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(ble_switch)
 
-# Build Rust static library (no_std, thumbv7em-none-eabihf for nRF52840)
-set(RUST_TARGET "thumbv7em-none-eabihf")
+# Build Rust static library (no_std, thumbv7em-none-eabi for nRF52840, soft-float ABI)
+set(RUST_TARGET "thumbv7em-none-eabi")
 set(RUST_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rust)
 set(RUST_LIB_PATH ${RUST_LIB_DIR}/target/${RUST_TARGET}/release/libapp_rust.a)
 add_custom_command(

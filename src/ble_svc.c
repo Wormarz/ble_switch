@@ -82,6 +82,7 @@ void ble_svc_init(void)
 
 int ble_svc_advertise_start(void)
 {
-	return bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad),
+	/* Use GAP recommended fast connectable advertising parameters */
+	return bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad),
 			       sd, ARRAY_SIZE(sd));
 }

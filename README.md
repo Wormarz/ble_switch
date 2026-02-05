@@ -4,6 +4,8 @@ Battery-powered BLE remote mechanical switch (Rust app logic + Zephyr C BLE/hard
 
 ## Prerequisites
 
+- DTC
+- Ninja
 - **Python 3** with `venv`: `sudo apt install python3-venv python3-pip`
 - **Rust** (rustup): <https://rustup.rs/> — add target: `rustup target add thumbv7em-none-eabihf`
 - **Toolchain** (one of):
