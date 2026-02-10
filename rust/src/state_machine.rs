@@ -1,6 +1,8 @@
 //! Mechanical action state machine: Idle, MovingToOn, MovingToOff, Error.
 
 use crate::ffi;
+use crate::power;
+use crate::ui;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -38,6 +40,12 @@ const MOTION_TIMEOUT_MS: u32 = 1500;
 fn request_on() {
     unsafe {
         if MACHINE_STATE == State::Idle {
+            if power::is_battery_too_low_for_motion() {
+                // Too low to move: go to error state and signal.
+                MACHINE_STATE = State::Error;
+                ffi::led_flash_error();
+                return;
+            }
             MACHINE_STATE = State::MovingToOn;
             ffi::motor_power_enable(1);
             ffi::motor_move_to_on();
@@ -49,6 +57,11 @@ fn request_on() {
 fn request_off() {
     unsafe {
         if MACHINE_STATE == State::Idle {
+            if power::is_battery_too_low_for_motion() {
+                MACHINE_STATE = State::Error;
+                ffi::led_flash_error();
+                return;
+            }
             MACHINE_STATE = State::MovingToOff;
             ffi::motor_power_enable(1);
             ffi::motor_move_to_off();
@@ -72,10 +85,7 @@ pub fn on_button_short() {
 }
 
 pub fn on_button_long() {
-    unsafe {
-        ffi::led_flash_pairing();
-        // C side will switch to pairing / factory reset mode
-    }
+    ui::enter_pairing_or_factory_reset();
 }
 
 pub fn on_motion_complete() {
@@ -108,4 +118,9 @@ pub fn clear_error() {
 
 pub fn get_switch_state() -> u8 {
     unsafe { LOGICAL_STATE & 1 }
+}
+
+/// Expose the raw state as a small integer for BLE status characteristic.
+pub fn get_error_state() -> u8 {
+    unsafe { MACHINE_STATE as u8 }
 }

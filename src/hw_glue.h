@@ -17,6 +17,9 @@ void led_flash_pairing(void);
 void led_flash_feedback(void);
 void led_flash_error(void);
 
+/* Factory reset helper - called from Rust UI code */
+void hw_factory_reset(void);
+
 /* Storage (NVS) - called from Rust */
 int storage_read(uint8_t *out_value);
 int storage_write(uint8_t value);

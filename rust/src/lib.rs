@@ -31,6 +31,11 @@ pub extern "C" fn rust_get_battery_level() -> u8 {
 }
 
 #[no_mangle]
+pub extern "C" fn rust_get_error_state() -> u8 {
+    state_machine::get_error_state()
+}
+
+#[no_mangle]
 pub extern "C" fn rust_on_button_short() {
     state_machine::on_button_short();
 }

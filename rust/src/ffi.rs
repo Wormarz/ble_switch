@@ -13,4 +13,5 @@ extern "C" {
     pub fn battery_read_percent() -> u8;
     pub fn timer_glue_start_motion_timeout_ms(ms: u32);
     pub fn timer_glue_stop_motion_timeout();
+    pub fn hw_factory_reset();
 }

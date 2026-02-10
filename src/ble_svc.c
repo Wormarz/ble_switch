@@ -7,10 +7,13 @@
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/uuid.h>
+#include <zephyr/bluetooth/services/bas.h>
 
 /* Rust API */
 extern uint8_t rust_get_switch_state(void);
 extern void rust_handle_switch_control(uint8_t value);
+extern uint8_t rust_get_battery_level(void);
+extern uint8_t rust_get_error_state(void);
 
 /* Remote Mechanical Switch Service: 0x0001-... (custom 128-bit) */
 #define BT_UUID_REMOTE_SWITCH_SVC_VAL \
@@ -23,6 +26,42 @@ static const struct bt_uuid_128 remote_switch_svc_uuid = BT_UUID_INIT_128(
 	BT_UUID_REMOTE_SWITCH_SVC_VAL);
 static const struct bt_uuid_128 switch_ctrl_uuid = BT_UUID_INIT_128(
 	BT_UUID_SWITCH_CTRL_VAL);
+
+/* Battery Level Service (BAS), 0x180F, with a single read-only Battery Level characteristic. */
+static ssize_t read_batt_level(struct bt_conn *conn,
+			       const struct bt_gatt_attr *attr,
+			       void *buf, uint16_t len, uint16_t offset)
+{
+	uint8_t lvl = rust_get_battery_level();
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &lvl, sizeof(lvl));
+}
+
+BT_GATT_SERVICE_DEFINE(bas_svc,
+	BT_GATT_PRIMARY_SERVICE(BT_UUID_BAS),
+	BT_GATT_CHARACTERISTIC(BT_UUID_BAS_BATTERY_LEVEL,
+			       BT_GATT_CHRC_READ,
+			       BT_GATT_PERM_READ,
+			       read_batt_level, NULL, NULL),
+);
+
+/* Simple error/status characteristic: exposes the current state/error code from Rust.
+ * 0 = Idle/OK, 1 = MovingToOn, 2 = MovingToOff, 3 = Error.
+ */
+static ssize_t read_error_state(struct bt_conn *conn,
+				const struct bt_gatt_attr *attr,
+				void *buf, uint16_t len, uint16_t offset)
+{
+	uint8_t val = rust_get_error_state();
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &val, sizeof(val));
+}
+
+BT_GATT_SERVICE_DEFINE(status_svc,
+	BT_GATT_PRIMARY_SERVICE(BT_UUID_DECLARE_16(0x180A)), /* reuse Device Info UUID namespace */
+	BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_16(0x2A3D), /* arbitrary 16-bit for status */
+			       BT_GATT_CHRC_READ,
+			       BT_GATT_PERM_READ,
+			       read_error_state, NULL, NULL),
+);
 
 static ssize_t read_switch_ctrl(struct bt_conn *conn,
 				const struct bt_gatt_attr *attr,
@@ -56,6 +95,8 @@ BT_GATT_SERVICE_DEFINE(remote_switch_svc,
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
 	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_REMOTE_SWITCH_SVC_VAL),
+	/* Advertise standard Battery Service (0x180F) as 16-bit UUID */
+	BT_DATA_BYTES(BT_DATA_UUID16_ALL, 0x0F, 0x18),
 };
 
 static const struct bt_data sd[] = {
