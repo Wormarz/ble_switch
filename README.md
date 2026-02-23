@@ -1,6 +1,6 @@
 # BLE Switch
 
-Battery-powered BLE remote mechanical switch (Rust app logic + Zephyr C BLE/hardware). See [design.md](design.md) for requirements.
+Battery-powered BLE remote mechanical switch (Rust app logic + Zephyr C BLE/hardware).
 
 ## Prerequisites
 
