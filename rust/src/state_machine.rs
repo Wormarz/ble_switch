@@ -1,29 +1,19 @@
 //! Mechanical action state machine: Idle, MovingToOn, MovingToOff, Error.
+//! All state lives in `app_state`; no `unsafe` in this module.
 
+use crate::app_state;
 use crate::ffi;
 use crate::power;
-use crate::ui;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum State {
-    Idle = 0,
-    MovingToOn = 1,
-    MovingToOff = 2,
-    Error = 3,
-}
-
-static mut MACHINE_STATE: State = State::Idle;
-static mut LOGICAL_STATE: u8 = 0; // 0 = off, 1 = on
+pub use crate::app_state::State;
 
 pub fn init() {
-    unsafe {
-        MACHINE_STATE = State::Idle;
-        let mut v: u8 = 0;
-        if ffi::storage_read(&mut v) == 0 {
-            LOGICAL_STATE = v & 1;
+    app_state::with_state(|s| {
+        s.machine_state = State::Idle;
+        if let Some(v) = ffi::storage_read_safe() {
+            s.logical_state = v;
         }
-    }
+    });
 }
 
 pub fn handle_switch_control(value: u8) {
@@ -38,45 +28,45 @@ pub fn handle_switch_control(value: u8) {
 const MOTION_TIMEOUT_MS: u32 = 1500;
 
 fn request_on() {
-    unsafe {
-        if MACHINE_STATE == State::Idle {
-            if power::is_battery_too_low_for_motion() {
-                // Too low to move: go to error state and signal.
-                MACHINE_STATE = State::Error;
-                ffi::led_flash_error();
-                return;
-            }
-            MACHINE_STATE = State::MovingToOn;
-            ffi::motor_power_enable(1);
-            ffi::motor_move_to_on();
-            ffi::timer_glue_start_motion_timeout_ms(MOTION_TIMEOUT_MS);
+    app_state::with_state(|s| {
+        if s.machine_state != State::Idle {
+            return;
         }
-    }
+        if power::is_battery_too_low_for_motion() {
+            s.machine_state = State::Error;
+            ffi::led_flash_error_safe();
+            return;
+        }
+        s.machine_state = State::MovingToOn;
+        ffi::motor_power_enable_safe(true);
+        ffi::motor_move_to_on_safe();
+        ffi::timer_glue_start_motion_timeout_ms_safe(MOTION_TIMEOUT_MS);
+    });
 }
 
 fn request_off() {
-    unsafe {
-        if MACHINE_STATE == State::Idle {
-            if power::is_battery_too_low_for_motion() {
-                MACHINE_STATE = State::Error;
-                ffi::led_flash_error();
-                return;
-            }
-            MACHINE_STATE = State::MovingToOff;
-            ffi::motor_power_enable(1);
-            ffi::motor_move_to_off();
-            ffi::timer_glue_start_motion_timeout_ms(MOTION_TIMEOUT_MS);
+    app_state::with_state(|s| {
+        if s.machine_state != State::Idle {
+            return;
         }
-    }
+        if power::is_battery_too_low_for_motion() {
+            s.machine_state = State::Error;
+            ffi::led_flash_error_safe();
+            return;
+        }
+        s.machine_state = State::MovingToOff;
+        ffi::motor_power_enable_safe(true);
+        ffi::motor_move_to_off_safe();
+        ffi::timer_glue_start_motion_timeout_ms_safe(MOTION_TIMEOUT_MS);
+    });
 }
 
 fn request_toggle() {
-    unsafe {
-        if LOGICAL_STATE != 0 {
-            request_off();
-        } else {
-            request_on();
-        }
+    let logical = get_switch_state();
+    if logical != 0 {
+        request_off();
+    } else {
+        request_on();
     }
 }
 
@@ -85,42 +75,42 @@ pub fn on_button_short() {
 }
 
 pub fn on_button_long() {
-    ui::enter_pairing_or_factory_reset();
+    crate::ui::enter_pairing_or_factory_reset();
 }
 
 pub fn on_motion_complete() {
-    unsafe {
-        ffi::timer_glue_stop_motion_timeout();
-        ffi::motor_stop();
-        ffi::motor_power_enable(0);
-        match MACHINE_STATE {
+    app_state::with_state(|s| {
+        ffi::timer_glue_stop_motion_timeout_safe();
+        ffi::motor_stop_safe();
+        ffi::motor_power_enable_safe(false);
+        match s.machine_state {
             State::MovingToOn => {
-                LOGICAL_STATE = 1;
-                ffi::led_flash_feedback();
-                let _ = ffi::storage_write(1);
+                s.logical_state = 1;
+                ffi::led_flash_feedback_safe();
+                let _ = ffi::storage_write_safe(1);
             }
             State::MovingToOff => {
-                LOGICAL_STATE = 0;
-                ffi::led_flash_feedback();
-                let _ = ffi::storage_write(0);
+                s.logical_state = 0;
+                ffi::led_flash_feedback_safe();
+                let _ = ffi::storage_write_safe(0);
             }
             _ => {}
         }
-        MACHINE_STATE = State::Idle;
-    }
+        s.machine_state = State::Idle;
+    });
 }
 
 pub fn clear_error() {
-    unsafe {
-        MACHINE_STATE = State::Idle;
-    }
+    app_state::with_state(|s| {
+        s.machine_state = State::Idle;
+    });
 }
 
 pub fn get_switch_state() -> u8 {
-    unsafe { LOGICAL_STATE & 1 }
+    app_state::with_state(|s| s.logical_state & 1)
 }
 
 /// Expose the raw state as a small integer for BLE status characteristic.
 pub fn get_error_state() -> u8 {
-    unsafe { MACHINE_STATE as u8 }
+    app_state::with_state(|s| s.machine_state as u8)
 }

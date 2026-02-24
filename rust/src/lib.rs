@@ -1,5 +1,6 @@
 #![no_std]
 
+mod app_state;
 mod ffi;
 mod state_machine;
 mod storage;

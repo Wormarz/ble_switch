@@ -1,24 +1,23 @@
 //! UI behaviour for pairing / factory reset.
-//! Actual LED GPIO is handled in C via ffi::led_flash_*.
+//! Actual LED GPIO is handled in C via safe ffi wrappers.
 
+use crate::app_state;
 use crate::ffi;
-
-static mut PAIRING_MODE: bool = false;
 
 /// Enter pairing / factory-reset UI mode.
 ///
-/// Currently this just flashes the pairing LED pattern and clears
-/// stored logical state via a call into C. BLE pairing/bonding wipe
-/// can be added later on the C side if needed.
+/// Flashes the pairing LED and clears stored logical state via C.
+/// BLE pairing/bonding wipe can be added later on the C side if needed.
 pub fn enter_pairing_or_factory_reset() {
-    unsafe {
-        PAIRING_MODE = true;
-        ffi::led_flash_pairing();
-        ffi::hw_factory_reset();
-    }
+    app_state::with_state(|s| {
+        s.pairing_mode = true;
+    });
+    ffi::led_flash_pairing_safe();
+    ffi::hw_factory_reset_safe();
 }
 
-/// Check if we are in pairing mode.
+/// Returns true if we are in pairing mode.
+#[allow(dead_code)]
 pub fn is_pairing_mode() -> bool {
-    unsafe { PAIRING_MODE }
+    app_state::with_state(|s| s.pairing_mode)
 }

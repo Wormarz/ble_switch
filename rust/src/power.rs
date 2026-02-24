@@ -1,4 +1,5 @@
 //! Battery level and motor power policy; ADC/GPIO in C.
+//! Uses only safe ffi wrappers; no `unsafe` in this module.
 
 use crate::ffi;
 
@@ -6,7 +7,7 @@ use crate::ffi;
 const LOW_BATTERY_THRESHOLD_PERCENT: u8 = 10;
 
 pub fn get_battery_level() -> u8 {
-    unsafe { ffi::battery_read_percent() }
+    ffi::battery_read_percent_safe()
 }
 
 /// Return true if the battery is considered too low for motor movement.
