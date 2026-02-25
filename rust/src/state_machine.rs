@@ -10,16 +10,41 @@ pub use crate::app_state::State;
 pub fn init() {
     app_state::with_state(|s| {
         s.machine_state = State::Idle;
-        if let Some(v) = ffi::storage_read_safe() {
-            s.logical_state = v;
+        if let Some(v) = ffi::storage_read_physical_safe() {
+            s.physical_state = v;
+        }
+        if let Some(v) = ffi::storage_read_orientation_safe() {
+            s.orientation = v;
         }
     });
 }
 
+/// Logical "on" means physical 1 when orientation=0, physical 0 when orientation=1.
+fn target_physical_for_logical_on() -> bool {
+    app_state::with_state(|s| s.orientation == 0)
+}
+
+/// Logical "off" means physical 0 when orientation=0, physical 1 when orientation=1.
+fn target_physical_for_logical_off() -> bool {
+    app_state::with_state(|s| s.orientation != 0)
+}
+
 pub fn handle_switch_control(value: u8) {
     match value {
-        0 => request_off(),
-        1 => request_on(),
+        0 => {
+            if target_physical_for_logical_off() {
+                request_off();
+            } else {
+                request_on();
+            }
+        }
+        1 => {
+            if target_physical_for_logical_on() {
+                request_on();
+            } else {
+                request_off();
+            }
+        }
         2 => request_toggle(),
         _ => {}
     }
@@ -85,14 +110,12 @@ pub fn on_motion_complete() {
         ffi::motor_power_enable_safe(false);
         match s.machine_state {
             State::MovingToOn => {
-                s.logical_state = 1;
+                s.physical_state = 1;
                 ffi::led_flash_feedback_safe();
-                let _ = ffi::storage_write_safe(1);
             }
             State::MovingToOff => {
-                s.logical_state = 0;
+                s.physical_state = 0;
                 ffi::led_flash_feedback_safe();
-                let _ = ffi::storage_write_safe(0);
             }
             _ => {}
         }
@@ -106,8 +129,36 @@ pub fn clear_error() {
     });
 }
 
+/// Logical state (user-visible on/off): derived from physical_state and orientation.
 pub fn get_switch_state() -> u8 {
-    app_state::with_state(|s| s.logical_state & 1)
+    app_state::with_state(|s| {
+        let p = s.physical_state & 1;
+        let o = s.orientation & 1;
+        if o == 0 {
+            p
+        } else {
+            1 - p
+        }
+    })
+}
+
+/// Logical↔physical mapping: 0 = normal, 1 = inverted. Persisted in NVS when set via BLE.
+pub fn get_orientation() -> u8 {
+    app_state::with_state(|s| s.orientation & 1)
+}
+
+/// Set logical↔physical mapping (0 or 1) and persist to NVS.
+pub fn set_orientation(value: u8) {
+    app_state::with_state(|s| {
+        s.orientation = value & 1;
+    });
+    let _ = ffi::storage_write_orientation_safe(value & 1);
+}
+
+/// Called from C when save-state GPIO goes low: write current physical state to NVS (not on every change, to limit wear).
+pub fn save_physical_state_to_nvs() {
+    let physical = app_state::with_state(|s| s.physical_state & 1);
+    let _ = ffi::storage_write_physical_safe(physical);
 }
 
 /// Expose the raw state as a small integer for BLE status characteristic.

@@ -7,6 +7,7 @@
 #include "ble_svc.h"
 #include "button.h"
 #include "timer_glue.h"
+#include "hw_glue.h"
 
 extern void rust_app_init(void);
 
@@ -23,5 +24,6 @@ void main(void)
 	ble_svc_init();
 	button_init();
 	timer_glue_init();
+	hw_save_state_trigger_init();
 	k_sleep(K_FOREVER);
 }

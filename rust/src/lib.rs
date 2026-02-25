@@ -27,6 +27,16 @@ pub extern "C" fn rust_get_switch_state() -> u8 {
 }
 
 #[no_mangle]
+pub extern "C" fn rust_get_orientation() -> u8 {
+    state_machine::get_orientation()
+}
+
+#[no_mangle]
+pub extern "C" fn rust_set_orientation(value: u8) {
+    state_machine::set_orientation(value);
+}
+
+#[no_mangle]
 pub extern "C" fn rust_get_battery_level() -> u8 {
     power::get_battery_level()
 }
@@ -49,6 +59,11 @@ pub extern "C" fn rust_on_button_long() {
 #[no_mangle]
 pub extern "C" fn rust_on_motion_complete() {
     state_machine::on_motion_complete();
+}
+
+#[no_mangle]
+pub extern "C" fn rust_save_physical_state_to_nvs() {
+    state_machine::save_physical_state_to_nvs();
 }
 
 #[no_mangle]

@@ -7,6 +7,7 @@
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/fs/nvs.h>
 #include <zephyr/drivers/adc.h>
+#include <zephyr/bluetooth/bluetooth.h>
 
 /* Motor: simple GPIO-based H-bridge style control using GPIO0 pins.
  * Two pins (IN1/IN2) drive ON/OFF direction.
@@ -139,26 +140,53 @@ static int storage_nvs_init(void)
 	return 0;
 }
 
-/* Use a fixed NVS ID for logical state. */
-#define NVS_ID_LOGICAL_STATE 1
+/* NVS: physical motor position (0/1) and logical↔physical mapping (0=normal, 1=inverted).
+ * Physical state is written only when save-state GPIO goes low (to limit NVS wear). */
+#define NVS_ID_PHYSICAL_STATE 1
+#define NVS_ID_ORIENTATION    2
 
-int storage_read(uint8_t *out_value)
+int storage_read_physical(uint8_t *out_value)
 {
 	int rc;
 	uint8_t val;
 
 	rc = storage_nvs_init();
 	if (rc) {
-		/* Fallback default: off */
+		if (out_value) *out_value = 0;
+		return rc;
+	}
+	rc = nvs_read(&nvs, NVS_ID_PHYSICAL_STATE, &val, sizeof(val));
+	if (rc < 0) {
+		if (out_value) *out_value = 0;
+		return rc;
+	}
+	if (out_value) *out_value = val & 1;
+	return 0;
+}
+
+int storage_write_physical(uint8_t value)
+{
+	int rc = storage_nvs_init();
+	if (rc) return rc;
+	value &= 1;
+	return nvs_write(&nvs, NVS_ID_PHYSICAL_STATE, &value, sizeof(value)) < 0 ? -1 : 0;
+}
+
+int storage_read_orientation(uint8_t *out_value)
+{
+	int rc;
+	uint8_t val;
+
+	rc = storage_nvs_init();
+	if (rc) {
 		if (out_value) {
 			*out_value = 0;
 		}
 		return rc;
 	}
 
-	rc = nvs_read(&nvs, NVS_ID_LOGICAL_STATE, &val, sizeof(val));
+	rc = nvs_read(&nvs, NVS_ID_ORIENTATION, &val, sizeof(val));
 	if (rc < 0) {
-		/* Not found or error: treat as 0/off. */
 		if (out_value) {
 			*out_value = 0;
 		}
@@ -166,31 +194,79 @@ int storage_read(uint8_t *out_value)
 	}
 
 	if (out_value) {
-		*out_value = val;
+		*out_value = val & 1;
 	}
 	return 0;
 }
 
-int storage_write(uint8_t value)
+int storage_write_orientation(uint8_t value)
 {
 	int rc = storage_nvs_init();
 	if (rc) {
 		return rc;
 	}
-
-	rc = nvs_write(&nvs, NVS_ID_LOGICAL_STATE, &value, sizeof(value));
-	return rc < 0 ? rc : 0;
+	value &= 1;
+	return nvs_write(&nvs, NVS_ID_ORIENTATION, &value, sizeof(value)) < 0 ? -1 : 0;
 }
 
-/* Simple factory reset: clear stored logical state by deleting NVS entry. */
+/* Factory reset: clear NVS state and all BLE bonds. */
 void hw_factory_reset(void)
 {
-	int rc;
-
-	rc = storage_nvs_init();
+	int rc = storage_nvs_init();
 	if (rc == 0) {
-		(void)nvs_delete(&nvs, NVS_ID_LOGICAL_STATE);
+		(void)nvs_delete(&nvs, NVS_ID_PHYSICAL_STATE);
+		(void)nvs_delete(&nvs, NVS_ID_ORIENTATION);
 	}
+	(void)bt_unpair(BT_ID_DEFAULT, NULL);
+}
+
+/* Save-state trigger: when this GPIO goes low, current physical state is written to NVS (via work, to limit wear). */
+#define SAVE_STATE_TRIGGER_PIN 15
+
+extern void rust_save_physical_state_to_nvs(void);
+
+static struct k_work save_state_work;
+static void save_state_work_handler(struct k_work *w)
+{
+	ARG_UNUSED(w);
+	rust_save_physical_state_to_nvs();
+}
+
+static void save_state_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins)
+{
+	ARG_UNUSED(port);
+	ARG_UNUSED(cb);
+	ARG_UNUSED(pins);
+	k_work_submit(&save_state_work);
+}
+
+static struct gpio_callback save_state_cb;
+static bool save_state_trigger_inited;
+
+void hw_save_state_trigger_init(void)
+{
+	const struct device *gpio0 = DEVICE_DT_GET(DT_NODELABEL(gpio0));
+	if (!device_is_ready(gpio0) || save_state_trigger_inited) {
+		return;
+	}
+	k_work_init(&save_state_work, save_state_work_handler);
+	int ret = gpio_pin_configure(gpio0, SAVE_STATE_TRIGGER_PIN,
+				     GPIO_INPUT | GPIO_PULL_UP);
+	if (ret) {
+		return;
+	}
+	gpio_init_callback(&save_state_cb, save_state_gpio_callback,
+			   BIT(SAVE_STATE_TRIGGER_PIN));
+	ret = gpio_add_callback(gpio0, &save_state_cb);
+	if (ret) {
+		return;
+	}
+	ret = gpio_pin_interrupt_configure(gpio0, SAVE_STATE_TRIGGER_PIN,
+					   GPIO_INT_EDGE_FALLING);
+	if (ret) {
+		return;
+	}
+	save_state_trigger_inited = true;
 }
 
 /* Battery measurement via ADC using zephyr,user io-channels[0]. */

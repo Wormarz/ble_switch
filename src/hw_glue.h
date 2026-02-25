@@ -20,9 +20,14 @@ void led_flash_error(void);
 /* Factory reset helper - called from Rust UI code */
 void hw_factory_reset(void);
 
-/* Storage (NVS) - called from Rust */
-int storage_read(uint8_t *out_value);
-int storage_write(uint8_t value);
+/* Storage (NVS) - called from Rust. Physical state written only on save-state GPIO low. */
+int storage_read_physical(uint8_t *out_value);
+int storage_write_physical(uint8_t value);
+int storage_read_orientation(uint8_t *out_value);
+int storage_write_orientation(uint8_t value);
+
+/* Call from main to enable save-state trigger: when GPIO goes low, physical state is written to NVS. */
+void hw_save_state_trigger_init(void);
 
 /* Battery - called from Rust; returns 0..100 */
 uint8_t battery_read_percent(void);

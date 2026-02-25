@@ -18,8 +18,10 @@ pub enum State {
 #[derive(Default)]
 pub struct AppState {
     pub machine_state: State,
-    /// 0 = off, 1 = on
-    pub logical_state: u8,
+    /// Actual motor position (0 or 1). Loaded from NVS on init; written to NVS only when save-state GPIO goes low.
+    pub physical_state: u8,
+    /// Logical↔physical mapping: 0 = normal (physical 1 = logical on), 1 = inverted (physical 0 = logical on). Configurable via BLE, persisted in NVS.
+    pub orientation: u8,
     pub pairing_mode: bool,
 }
 

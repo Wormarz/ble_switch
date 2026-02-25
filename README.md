@@ -96,10 +96,15 @@ west flash
 ## GATT
 
 - **Remote Mechanical Switch Service** (128-bit UUID).
-- **Switch Control**: read = current logical state (0/1); write = 0 off, 1 on, 2 toggle.
+- **Switch Control**: read = current **logical** state (0 = off, 1 = on); write = 0 off, 1 on, 2 toggle. Logical state = f(physical position, mapping).
+- **Mapping** (128-bit UUID): read/write logical↔physical mapping (0 = normal, 1 = inverted). Configurable via BLE; persisted in NVS. Use to align logical on/off with actual motor position (e.g. when mounted upside down set to 1).
+
+State model:
+- **Physical state**: actual motor position (0 or 1). Loaded from NVS on boot; updated in memory when motion completes. **Not** written on every change—only when the **save-state GPIO** goes low (to limit NVS wear). Pin: `SAVE_STATE_TRIGGER_PIN` in `hw_glue.c` (default 15, input pull-up; falling edge triggers a work that writes current physical state to NVS).
+- **Mapping**: 0 = normal (physical 1 ⇒ logical on), 1 = inverted (physical 0 ⇒ logical on). Stored in NVS, configurable via BLE.
+- **Logical state**: user-visible on/off = f(physical_state, mapping).
 
 ## Optional / TODO
 
-- **NVS**: `storage_read`/`storage_write` in `hw_glue.c` are stubs; add Zephyr NVS and a partition to persist logical state across reboot.
-- **Battery**: `battery_read_percent()` is stub (returns 100); add ADC sampling and scaling for real battery level.
-- **Motor**: `motor_move_to_on`/`motor_move_to_off` are stubs; add PWM (e.g. servo on a PWM pin) in `hw_glue.c`.
+- **Battery**: `battery_read_percent()` uses ADC when configured; adjust voltage curve or NVS-backed PIN in bootloader flow if needed.
+- **Motor**: GPIO-based motor control is implemented; add PWM/servo in `hw_glue.c` if required for your hardware.

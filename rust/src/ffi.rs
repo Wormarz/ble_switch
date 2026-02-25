@@ -9,8 +9,10 @@ extern "C" {
     fn led_flash_pairing();
     fn led_flash_feedback();
     fn led_flash_error();
-    fn storage_read(out_value: *mut u8) -> i32;
-    fn storage_write(value: u8) -> i32;
+    fn storage_read_physical(out_value: *mut u8) -> i32;
+    fn storage_write_physical(value: u8) -> i32;
+    fn storage_read_orientation(out_value: *mut u8) -> i32;
+    fn storage_write_orientation(value: u8) -> i32;
     fn battery_read_percent() -> u8;
     fn timer_glue_start_motion_timeout_ms(ms: u32);
     fn timer_glue_stop_motion_timeout();
@@ -47,20 +49,32 @@ pub fn led_flash_error_safe() {
     unsafe { led_flash_error() }
 }
 
-/// Returns `Some(value)` if read succeeded (value is 0 or 1), `None` on error or missing.
-pub fn storage_read_safe() -> Option<u8> {
+/// Physical motor position (0 or 1). Returns None on error/missing.
+pub fn storage_read_physical_safe() -> Option<u8> {
     let mut v: u8 = 0;
-    let ok = unsafe { storage_read(&mut v) == 0 };
-    if ok {
+    if unsafe { storage_read_physical(&mut v) == 0 } {
         Some(v & 1)
     } else {
         None
     }
 }
 
-/// Returns true if write succeeded.
-pub fn storage_write_safe(value: u8) -> bool {
-    unsafe { storage_write(value) == 0 }
+pub fn storage_write_physical_safe(value: u8) -> bool {
+    unsafe { storage_write_physical(value & 1) == 0 }
+}
+
+/// Logical↔physical mapping: 0 = normal, 1 = inverted. Returns None on error/missing.
+pub fn storage_read_orientation_safe() -> Option<u8> {
+    let mut v: u8 = 0;
+    if unsafe { storage_read_orientation(&mut v) == 0 } {
+        Some(v & 1)
+    } else {
+        None
+    }
+}
+
+pub fn storage_write_orientation_safe(value: u8) -> bool {
+    unsafe { storage_write_orientation(value & 1) == 0 }
 }
 
 pub fn battery_read_percent_safe() -> u8 {
