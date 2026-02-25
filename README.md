@@ -1,6 +1,29 @@
 # BLE Switch
 
-Battery-powered BLE remote mechanical switch (Rust app logic + Zephyr C BLE/hardware).
+Battery-powered BLE remote mechanical switch: Rust state machine and storage logic, Zephyr C for BLE, motor, NVS, button, and ADC. Target board nRF52840 DK (or use another board overlay).
+
+## Implemented features
+
+- **BLE GATT**
+  - Custom **Remote Mechanical Switch Service** (128-bit UUID): Switch Control (read logical state; write 0=off, 1=on, 2=toggle) and Mapping (read/write logical↔physical mapping, persisted in NVS).
+  - Standard **Battery Service** (0x180F): battery level 0–100%.
+  - **Status/error** characteristic: 0=Idle, 1=MovingToOn, 2=MovingToOff, 3=Error.
+  - Optional fixed passkey pairing when `CONFIG_BT_APP_PASSKEY` is set.
+- **State model**
+  - **Physical state** (motor position 0 or 1): loaded from NVS on boot; updated in RAM when motion completes. Not written to NVS on every change—only when the **save-state GPIO** goes low (reduces flash wear).
+  - **Mapping** (0=normal, 1=inverted): configurable via BLE, persisted in NVS. Logical on/off = f(physical_state, mapping).
+  - **Logical state**: user-visible on/off; read over BLE and used for toggle/set.
+- **NVS**
+  - Two keys: physical state (written only on save-state trigger) and mapping (written when set via BLE). Factory reset clears both and removes BLE bonds.
+- **Motor**
+  - GPIO H-bridge (pins 13/14 on GPIO0): move to ON, move to OFF, stop. Motion timeout (e.g. 1.5 s) stops motor and updates in-memory physical state.
+- **Button** (devicetree `sw0`)
+  - Short press: toggle logical switch.
+  - Long press (2 s): enter pairing / factory reset (clear NVS, unpair all BLE bonds).
+- **Battery**
+  - ADC via `zephyr,user` io-channels when configured; 0–100% from voltage curve. Motor disabled when level ≤ 10%. Level exposed over BLE.
+- **LED** (devicetree `led0` if present)
+  - Short flashes: pairing, feedback (motion done), error (e.g. low battery on move).
 
 ## Prerequisites
 
@@ -93,18 +116,27 @@ west flash
 - **Network issues (`git`/`west`)**: `scripts/setup_zephyr.sh` and `west update` may fail with TLS/curl errors on poor networks. Simply rerun the script or `west update` from `zephyr/` once the network is stable.
 - **MCUboot**: MCUboot should be fetched under `zephyr/bootloader/mcuboot` via `cd zephyr && .venv/bin/west update mcuboot`. If this fails due to network errors, retry later; the root `bootloader/` directory is kept out of git via `.gitignore`.
 
-## GATT
+## GATT summary
 
-- **Remote Mechanical Switch Service** (128-bit UUID).
-- **Switch Control**: read = current **logical** state (0 = off, 1 = on); write = 0 off, 1 on, 2 toggle. Logical state = f(physical position, mapping).
-- **Mapping** (128-bit UUID): read/write logical↔physical mapping (0 = normal, 1 = inverted). Configurable via BLE; persisted in NVS. Use to align logical on/off with actual motor position (e.g. when mounted upside down set to 1).
+| Service / characteristic | Description |
+|--------------------------|-------------|
+| **Remote Mechanical Switch** (custom 128-bit) | |
+| Switch Control | Read: logical state (0/1). Write: 0=off, 1=on, 2=toggle. |
+| Mapping (orientation) | Read/write: 0=normal (physical 1⇒logical on), 1=inverted. Persisted in NVS. |
+| **Battery** (0x180F) | Battery level 0–100%. |
+| **Status** (Device Info namespace) | 0=Idle, 1=MovingToOn, 2=MovingToOff, 3=Error. |
 
-State model:
-- **Physical state**: actual motor position (0 or 1). Loaded from NVS on boot; updated in memory when motion completes. **Not** written on every change—only when the **save-state GPIO** goes low (to limit NVS wear). Pin: `SAVE_STATE_TRIGGER_PIN` in `hw_glue.c` (default 15, input pull-up; falling edge triggers a work that writes current physical state to NVS).
-- **Mapping**: 0 = normal (physical 1 ⇒ logical on), 1 = inverted (physical 0 ⇒ logical on). Stored in NVS, configurable via BLE.
-- **Logical state**: user-visible on/off = f(physical_state, mapping).
+**Save-state trigger**: When GPIO `SAVE_STATE_TRIGGER_PIN` in `hw_glue.c` (default **P0.15**) goes **low** (falling edge, input pull-up), a work item runs that writes the current physical state to NVS. This avoids writing NVS on every switch change and reduces flash wear.
 
-## Optional / TODO
+## Hardware (default / in code)
 
-- **Battery**: `battery_read_percent()` uses ADC when configured; adjust voltage curve or NVS-backed PIN in bootloader flow if needed.
-- **Motor**: GPIO-based motor control is implemented; add PWM/servo in `hw_glue.c` if required for your hardware.
+- **Motor**: GPIO0 pins 13 (IN1), 14 (IN2); H-bridge style ON/OFF/stop.
+- **Save-state trigger**: GPIO0 pin 15; change `SAVE_STATE_TRIGGER_PIN` in `hw_glue.c` if needed.
+- **Button**: devicetree alias `sw0`.
+- **LED**: devicetree alias `led0` (optional).
+- **Battery ADC**: `zephyr,user` io-channels in devicetree (optional; else reports 100%).
+
+## Optional / future
+
+- Tune battery voltage curve (e.g. min/max mV) in `hw_glue.c` for your cell.
+- Replace GPIO motor drive with PWM/servo in `hw_glue.c` if your hardware requires it.
