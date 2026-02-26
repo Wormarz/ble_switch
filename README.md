@@ -30,7 +30,7 @@ Battery-powered BLE remote mechanical switch: Rust state machine and storage log
 - DTC
 - Ninja
 - **Python 3** with `venv`: `sudo apt install python3-venv python3-pip`
-- **Rust** (rustup): <https://rustup.rs/> — add target: `rustup target add thumbv8m.main-none-eabi`
+- **Rust** (rustup): <https://rustup.rs/> — add target: `rustup target add thumbv8m.main-none-eabihf`
 - **Toolchain** (one of):
   - **GNU Arm Embedded** (no SDK): `sudo apt install gcc-arm-none-eabi` then set `ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb` when building
   - **Zephyr SDK**: install [Zephyr SDK](https://docs.zephyrproject.org/latest/develop/getting_started/index.html) and set `ZEPHYR_SDK_INSTALL_DIR` to its path
@@ -64,10 +64,10 @@ Zephyr source, `.west`, and modules live **only under `zephyr/`**. Run the scrip
    ```
    The script uses the **system ARM GCC** by default. If `ZEPHYR_SDK_INSTALL_DIR` is set (or the SDK was auto-installed under `zephyr/sdk`), it uses the **Zephyr SDK** toolchain instead. Optional: `BOARD=nrf5340dk/nrf5340/cpuapp ./scripts/build.sh` or `./scripts/build.sh --pristine`.
 
-3. (Optional) Build only the Rust static library (nRF5340 app core, Cortex-M33, soft-float ABI to match Zephyr):
+3. (Optional) Build only the Rust static library (nRF5340 app core, Cortex-M33F, hard-float ABI to match Zephyr):
    ```bash
    cd rust
-   cargo build --release --target thumbv8m.main-none-eabi
+   cargo build --release --target thumbv8m.main-none-eabihf
    cd ..
    ```
 
@@ -111,7 +111,7 @@ west flash
 
 ## Notes / Troubleshooting
 
-- **Rust/Zephyr ABI**: Rust is built for `thumbv8m.main-none-eabi` (Cortex-M33 soft-float) to match Zephyr’s default ABI on the nRF5340 application core. Make sure `rustup target add thumbv8m.main-none-eabi` is installed.
+- **Rust/Zephyr ABI**: Rust is built for `thumbv8m.main-none-eabihf` (Cortex-M33F hard-float) to match Zephyr’s ABI on the nRF5340 application core. Make sure `rustup target add thumbv8m.main-none-eabihf` is installed.
 - **Kconfig warnings**: `zephyr/zephyr/scripts/kconfig/kconfig.py` is patched locally to avoid treating Kconfig warnings as fatal. Updating Zephyr may overwrite this patch; re-apply if builds start aborting due to warnings again.
 - **Network issues (`git`/`west`)**: `scripts/setup_zephyr.sh` and `west update` may fail with TLS/curl errors on poor networks. Simply rerun the script or `west update` from `zephyr/` once the network is stable.
 - **MCUboot**: MCUboot should be fetched under `zephyr/bootloader/mcuboot` via `cd zephyr && .venv/bin/west update mcuboot`. If this fails due to network errors, retry later; the root `bootloader/` directory is kept out of git via `.gitignore`.
