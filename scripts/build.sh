@@ -4,7 +4,7 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-BOARD="${BOARD:-nrf52840dk/nrf52840}"
+BOARD="${BOARD:-nrf5340dk/nrf5340/cpuapp}"
 
 export ZEPHYR_BASE="$PROJECT_ROOT/zephyr/zephyr"
 if [ -z "$ZEPHYR_SDK_INSTALL_DIR" ] && [ -f "$PROJECT_ROOT/zephyr/sdk/sdk_version" ]; then

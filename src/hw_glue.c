@@ -73,7 +73,7 @@ void motor_power_enable(bool enable)
 	}
 }
 
-/* LED: short flash if led0 exists (e.g. nRF52840 DK LED1) */
+/* LED: short flash if led0 exists (e.g. nRF5340 DK LED1) */
 #if DT_NODE_EXISTS(DT_ALIAS(led0))
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 static struct k_timer led_off_timer;

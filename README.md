@@ -1,6 +1,6 @@
 # BLE Switch
 
-Battery-powered BLE remote mechanical switch: Rust state machine and storage logic, Zephyr C for BLE, motor, NVS, button, and ADC. Target board nRF52840 DK (or use another board overlay).
+Battery-powered BLE remote mechanical switch: Rust state machine and storage logic, Zephyr C for BLE, motor, NVS, button, and ADC. Target board nRF5340 DK application core (or use another board overlay).
 
 ## Implemented features
 
@@ -62,7 +62,7 @@ Zephyr source, `.west`, and modules live **only under `zephyr/`**. Run the scrip
    ```bash
    ./scripts/build.sh
    ```
-   The script uses the **system ARM GCC** by default. If `ZEPHYR_SDK_INSTALL_DIR` is set (or the SDK was auto-installed under `zephyr/sdk`), it uses the **Zephyr SDK** toolchain instead. Optional: `BOARD=nrf52840dk/nrf52840 ./scripts/build.sh` or `./scripts/build.sh --pristine`.
+   The script uses the **system ARM GCC** by default. If `ZEPHYR_SDK_INSTALL_DIR` is set (or the SDK was auto-installed under `zephyr/sdk`), it uses the **Zephyr SDK** toolchain instead. Optional: `BOARD=nrf5340dk/nrf5340/cpuapp ./scripts/build.sh` or `./scripts/build.sh --pristine`.
 
 3. (Optional) Build only the Rust static library:
    ```bash
@@ -99,19 +99,19 @@ Zephyr source, `.west`, and modules live **only under `zephyr/`**. Run the scrip
 ```bash
 west flash
 ```
-(Connect nRF52840 DK via USB; udev rules may be required on Linux.)
+(Connect nRF5340 DK via USB; udev rules may be required on Linux.)
 
 ## Layout
 
 - **`rust/`** — Application logic (state machine, storage, motor/UI/power policy); built as staticlib, called from C via FFI.
 - **`src/`** — C: main, BLE GATT service, hw_glue (motor/LED/NVS/battery), button, timer_glue.
 - **`zephyr/`** — Zephyr repo, modules, and (optionally) SDK; created by `scripts/setup_zephyr.sh`.
-- **`boards/`** — Board overlays (e.g. nRF52840 DK).
+- **`boards/`** — Board overlays (e.g. nRF5340 DK application core).
 - **`bootloader/` (root)** — Ignored by git; legacy location if an earlier MCUboot clone existed. MCUboot managed by west should live under `zephyr/bootloader/mcuboot`.
 
 ## Notes / Troubleshooting
 
-- **Rust/Zephyr ABI**: Rust is built for `thumbv7em-none-eabi` (soft-float) to match Zephyr’s default ABI on nRF52840. Make sure `rustup target add thumbv7em-none-eabi` is installed.
+- **Rust/Zephyr ABI**: Rust is built for `thumbv7em-none-eabi` (soft-float) to match Zephyr’s default ABI on the nRF5340 application core. Make sure `rustup target add thumbv7em-none-eabi` is installed.
 - **Kconfig warnings**: `zephyr/zephyr/scripts/kconfig/kconfig.py` is patched locally to avoid treating Kconfig warnings as fatal. Updating Zephyr may overwrite this patch; re-apply if builds start aborting due to warnings again.
 - **Network issues (`git`/`west`)**: `scripts/setup_zephyr.sh` and `west update` may fail with TLS/curl errors on poor networks. Simply rerun the script or `west update` from `zephyr/` once the network is stable.
 - **MCUboot**: MCUboot should be fetched under `zephyr/bootloader/mcuboot` via `cd zephyr && .venv/bin/west update mcuboot`. If this fails due to network errors, retry later; the root `bootloader/` directory is kept out of git via `.gitignore`.

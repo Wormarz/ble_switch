@@ -1,7 +1,7 @@
 /*
- * nRF52840 DK overlay (legacy; default board is now nRF5340 DK app core)
+ * nRF5340 DK (application core) overlay
  *
- * Enable GPIO/PWM and define simple GPIO-based motor control pins.
+ * Enable GPIO/ADC and define simple GPIO-based motor control pins.
  * The actual H-bridge / driver hardware should connect to these pins.
  */
 
@@ -11,8 +11,8 @@
 
 /*
  * Two GPIOs used for motor direction:
- * - motor_in1: drives \"ON\" direction
- * - motor_in2: drives \"OFF\" direction
+ * - motor_in1: drives "ON" direction
+ * - motor_in2: drives "OFF" direction
  *
  * These can be wired to an H-bridge or driver inputs.
  */
@@ -26,13 +26,9 @@
 	};
 };
 
-&pwm0 {
-	status = "okay";
-};
-
 /* ADC configuration for battery measurement.
- * We re-use the pattern from Zephyr's adc_dt sample and expose one
- * ADC channel via zephyr,user io-channels.
+ * We expose one ADC channel via zephyr,user io-channels; the exact analog pin
+ * is defined by the board's ADC channel 0 default.
  */
 / {
 	zephyr,user {
@@ -49,7 +45,7 @@
 		zephyr,gain = "ADC_GAIN_1_6";
 		zephyr,reference = "ADC_REF_INTERNAL";
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
-		/* input-positive left as board default for AIN0 (P0.03) */
 		zephyr,resolution = <12>;
 	};
 };
+
