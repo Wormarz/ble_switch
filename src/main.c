@@ -1,6 +1,6 @@
 /*
  * BLE Switch - main entry
- * Initializes Rust app, BLE, button, timer; then idle.
+ * Initializes app logic, BLE, button, timer; then idle.
  */
 #include "ble_svc.h"
 #include "button.h"
@@ -9,23 +9,23 @@
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 
-extern void rust_app_init(void);
+extern void app_init(void);
 
 static int ble_switch_init(void)
 {
-  rust_app_init();
-  return 0;
+	app_init();
+	return 0;
 }
 
 SYS_INIT(ble_switch_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 int main(void)
 {
-  ble_svc_init();
-  button_init();
-  timer_glue_init();
-  hw_save_state_trigger_init();
-  k_sleep(K_FOREVER);
+	ble_svc_init();
+	button_init();
+	timer_glue_init();
+	hw_save_state_trigger_init();
+	k_sleep(K_FOREVER);
 
-  return 0;
+	return 0;
 }

@@ -223,13 +223,13 @@ void hw_factory_reset(void)
 /* Save-state trigger: when this GPIO goes low, current physical state is written to NVS (via work, to limit wear). */
 #define SAVE_STATE_TRIGGER_PIN 15
 
-extern void rust_save_physical_state_to_nvs(void);
+extern void app_save_physical_state_to_nvs(void);
 
 static struct k_work save_state_work;
 static void save_state_work_handler(struct k_work *w)
 {
 	ARG_UNUSED(w);
-	rust_save_physical_state_to_nvs();
+	app_save_physical_state_to_nvs();
 }
 
 static void save_state_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins)

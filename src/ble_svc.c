@@ -10,13 +10,13 @@
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/services/bas.h>
 
-/* Rust API */
-extern uint8_t rust_get_switch_state(void);
-extern void rust_handle_switch_control(uint8_t value);
-extern uint8_t rust_get_orientation(void);
-extern void rust_set_orientation(uint8_t value);
-extern uint8_t rust_get_battery_level(void);
-extern uint8_t rust_get_error_state(void);
+/* Application logic API */
+extern uint8_t app_get_switch_state(void);
+extern void app_handle_switch_control(uint8_t value);
+extern uint8_t app_get_orientation(void);
+extern void app_set_orientation(uint8_t value);
+extern uint8_t app_get_battery_level_api(void);
+extern uint8_t app_get_error_state(void);
 
 /* Remote Mechanical Switch Service: 0x0001-... (custom 128-bit) */
 #define BT_UUID_REMOTE_SWITCH_SVC_VAL \
@@ -40,7 +40,7 @@ static ssize_t read_batt_level(struct bt_conn *conn,
 			       const struct bt_gatt_attr *attr,
 			       void *buf, uint16_t len, uint16_t offset)
 {
-	uint8_t lvl = rust_get_battery_level();
+	uint8_t lvl = app_get_battery_level_api();
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &lvl, sizeof(lvl));
 }
 
@@ -76,7 +76,7 @@ static ssize_t read_error_state(struct bt_conn *conn,
 				const struct bt_gatt_attr *attr,
 				void *buf, uint16_t len, uint16_t offset)
 {
-	uint8_t val = rust_get_error_state();
+	uint8_t val = app_get_error_state();
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &val, sizeof(val));
 }
 
@@ -92,7 +92,7 @@ static ssize_t read_switch_ctrl(struct bt_conn *conn,
 				const struct bt_gatt_attr *attr,
 				void *buf, uint16_t len, uint16_t offset)
 {
-	uint8_t val = rust_get_switch_state();
+	uint8_t val = app_get_switch_state();
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &val, sizeof(val));
 }
 
@@ -105,7 +105,7 @@ static ssize_t write_switch_ctrl(struct bt_conn *conn,
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
 	uint8_t val = *(const uint8_t *)buf;
-	rust_handle_switch_control(val);
+	app_handle_switch_control(val);
 	return len;
 }
 
@@ -113,7 +113,7 @@ static ssize_t read_orientation(struct bt_conn *conn,
 				const struct bt_gatt_attr *attr,
 				void *buf, uint16_t len, uint16_t offset)
 {
-	uint8_t val = rust_get_orientation();
+	uint8_t val = app_get_orientation();
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &val, sizeof(val));
 }
 
@@ -126,7 +126,7 @@ static ssize_t write_orientation(struct bt_conn *conn,
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
 	uint8_t val = *(const uint8_t *)buf;
-	rust_set_orientation(val & 1);
+	app_set_orientation(val & 1);
 	return len;
 }
 

@@ -1,14 +1,14 @@
 #include "timer_glue.h"
 #include <zephyr/kernel.h>
 
-extern void rust_on_motion_complete(void);
+extern void app_on_motion_complete(void);
 
 static struct k_timer motion_timer;
 
 static void motion_timeout_handler(struct k_timer *timer)
 {
 	ARG_UNUSED(timer);
-	rust_on_motion_complete();
+	app_on_motion_complete();
 }
 
 void timer_glue_init(void)

@@ -4,8 +4,8 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/devicetree.h>
 
-extern void rust_on_button_short(void);
-extern void rust_on_button_long(void);
+extern void app_on_button_short(void);
+extern void app_on_button_long(void);
 
 #define LONG_PRESS_MS 2000
 
@@ -24,7 +24,7 @@ static void long_press_expiry(struct k_timer *timer)
 {
 	ARG_UNUSED(timer);
 	long_press_fired = true;
-	rust_on_button_long();
+	app_on_button_long();
 }
 
 static void button_handler(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
@@ -42,7 +42,7 @@ static void button_handler(const struct device *dev, struct gpio_callback *cb, u
 		/* Released */
 		k_timer_stop(&long_press_timer);
 		if (!long_press_fired) {
-			rust_on_button_short();
+			app_on_button_short();
 		}
 	}
 }
