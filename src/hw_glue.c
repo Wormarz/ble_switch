@@ -134,8 +134,8 @@ static int storage_nvs_init(void)
 	}
 
 	nvs.offset = fa->fa_off;
-	nvs.sector_size = fa->fa_size;
-	nvs.sector_count = 1;
+	nvs.sector_size = fa->fa_size / 2;
+	nvs.sector_count = 2;
 	nvs.flash_device = fa->fa_dev;
 
 	rc = nvs_mount(&nvs);
