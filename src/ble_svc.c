@@ -167,7 +167,12 @@ static void bt_ready(int err)
 		return;
 	}
 	LOG_INF("bt_enable OK, starting advertising");
-	ble_svc_advertise_start();
+	err = ble_svc_advertise_start();
+	if (err) {
+		LOG_ERR("Advertising start failed: %d", err);
+	} else {
+		LOG_INF("Advertising started successfully");
+	}
 }
 
 void ble_svc_init(void)
@@ -180,8 +185,7 @@ void ble_svc_init(void)
 
 	err = bt_enable(bt_ready);
 	if (err) {
-		/* Log if CONFIG_LOG enabled */
-		(void)err;
+		LOG_ERR("bt_enable failed: %d", err);
 	}
 }
 
