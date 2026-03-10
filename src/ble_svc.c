@@ -9,6 +9,7 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/uuid.h>
+#include <zephyr/settings/settings.h>
 #include <zephyr/bluetooth/services/bas.h>
 
 LOG_MODULE_REGISTER(ble_svc, LOG_LEVEL_INF);
@@ -166,6 +167,11 @@ static void bt_ready(int err)
 		LOG_ERR("bt_enable failed: %d", err);
 		return;
 	}
+
+	if (IS_ENABLED(CONFIG_SETTINGS)) {
+        settings_load();
+    }
+
 	LOG_INF("bt_enable OK, starting advertising");
 	err = ble_svc_advertise_start();
 	if (err) {
