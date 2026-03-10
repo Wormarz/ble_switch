@@ -3,6 +3,9 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/logging/log.h>
+
+LOG_MODULE_REGISTER(button, LOG_LEVEL_INF);
 
 extern void app_on_button_short(void);
 extern void app_on_button_long(void);
@@ -24,6 +27,7 @@ static void long_press_expiry(struct k_timer *timer)
 {
 	ARG_UNUSED(timer);
 	long_press_fired = true;
+	LOG_INF("Button long-press timeout");
 	app_on_button_long();
 }
 
@@ -36,12 +40,15 @@ static void button_handler(const struct device *dev, struct gpio_callback *cb, u
 	int val = gpio_pin_get_dt(&button);
 	if (val == 0) {
 		/* Pressed: start long-press timer */
+		LOG_DBG("Button pressed");
 		long_press_fired = false;
 		k_timer_start(&long_press_timer, K_MSEC(LONG_PRESS_MS), K_NO_WAIT);
 	} else {
 		/* Released */
+		LOG_DBG("Button released");
 		k_timer_stop(&long_press_timer);
 		if (!long_press_fired) {
+			LOG_INF("Button short press");
 			app_on_button_short();
 		}
 	}

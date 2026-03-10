@@ -4,11 +4,14 @@
  */
 #include "ble_svc.h"
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/services/bas.h>
+
+LOG_MODULE_REGISTER(ble_svc, LOG_LEVEL_INF);
 
 /* Application logic API */
 extern uint8_t app_get_switch_state(void);
@@ -105,6 +108,7 @@ static ssize_t write_switch_ctrl(struct bt_conn *conn,
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
 	uint8_t val = *(const uint8_t *)buf;
+	LOG_INF("GATT Switch Control write: %u (0=off,1=on,2=toggle)", val);
 	app_handle_switch_control(val);
 	return len;
 }
@@ -114,6 +118,7 @@ static ssize_t read_orientation(struct bt_conn *conn,
 				void *buf, uint16_t len, uint16_t offset)
 {
 	uint8_t val = app_get_orientation();
+	LOG_DBG("GATT Orientation read: %u", val);
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &val, sizeof(val));
 }
 
@@ -126,6 +131,7 @@ static ssize_t write_orientation(struct bt_conn *conn,
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
 	uint8_t val = *(const uint8_t *)buf;
+	LOG_INF("GATT Orientation write: %u", val & 1);
 	app_set_orientation(val & 1);
 	return len;
 }
@@ -157,8 +163,10 @@ static const struct bt_data sd[] = {
 static void bt_ready(int err)
 {
 	if (err) {
+		LOG_ERR("bt_enable failed: %d", err);
 		return;
 	}
+	LOG_INF("bt_enable OK, starting advertising");
 	ble_svc_advertise_start();
 }
 

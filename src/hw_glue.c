@@ -8,6 +8,9 @@
 #include <zephyr/fs/nvs.h>
 #include <zephyr/drivers/adc.h>
 #include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/logging/log.h>
+
+LOG_MODULE_REGISTER(hw_glue, LOG_LEVEL_INF);
 
 /* Motor: simple GPIO-based H-bridge style control using GPIO0 pins.
  * Two pins (IN1/IN2) drive ON/OFF direction.
@@ -39,6 +42,7 @@ void motor_move_to_on(void)
 		return;
 	}
 	/* Drive ON direction: IN1=1, IN2=0 */
+	LOG_INF("Motor move_to_on");
 	gpio_pin_set(motor_port, MOTOR_IN1_PIN, 1);
 	gpio_pin_set(motor_port, MOTOR_IN2_PIN, 0);
 }
@@ -50,6 +54,7 @@ void motor_move_to_off(void)
 		return;
 	}
 	/* Drive OFF direction: IN1=0, IN2=1 */
+	LOG_INF("Motor move_to_off");
 	gpio_pin_set(motor_port, MOTOR_IN1_PIN, 0);
 	gpio_pin_set(motor_port, MOTOR_IN2_PIN, 1);
 }
@@ -61,6 +66,7 @@ void motor_stop(void)
 		return;
 	}
 	/* Brake / stop: both low */
+	LOG_DBG("Motor stop");
 	gpio_pin_set(motor_port, MOTOR_IN1_PIN, 0);
 	gpio_pin_set(motor_port, MOTOR_IN2_PIN, 0);
 }
@@ -100,6 +106,7 @@ static void led_flash_ms(uint32_t ms) { (void)ms; }
 
 void led_flash_pairing(void)
 {
+	LOG_INF("LED pairing flash");
 	led_flash_ms(100);
 }
 
@@ -169,7 +176,13 @@ int storage_write_physical(uint8_t value)
 	int rc = storage_nvs_init();
 	if (rc) return rc;
 	value &= 1;
-	return nvs_write(&nvs, NVS_ID_PHYSICAL_STATE, &value, sizeof(value)) < 0 ? -1 : 0;
+	rc = nvs_write(&nvs, NVS_ID_PHYSICAL_STATE, &value, sizeof(value)) < 0 ? -1 : 0;
+	if (rc == 0) {
+		LOG_INF("NVS write physical_state=%u", value);
+	} else {
+		LOG_WRN("NVS write physical_state failed, rc=%d", rc);
+	}
+	return rc;
 }
 
 int storage_read_orientation(uint8_t *out_value)
@@ -206,7 +219,13 @@ int storage_write_orientation(uint8_t value)
 		return rc;
 	}
 	value &= 1;
-	return nvs_write(&nvs, NVS_ID_ORIENTATION, &value, sizeof(value)) < 0 ? -1 : 0;
+	rc = nvs_write(&nvs, NVS_ID_ORIENTATION, &value, sizeof(value)) < 0 ? -1 : 0;
+	if (rc == 0) {
+		LOG_INF("NVS write orientation=%u", value);
+	} else {
+		LOG_WRN("NVS write orientation failed, rc=%d", rc);
+	}
+	return rc;
 }
 
 /* Factory reset: clear NVS state and all BLE bonds. */
@@ -217,6 +236,7 @@ void hw_factory_reset(void)
 		(void)nvs_delete(&nvs, NVS_ID_PHYSICAL_STATE);
 		(void)nvs_delete(&nvs, NVS_ID_ORIENTATION);
 	}
+	LOG_INF("Factory reset: cleared NVS and BLE bonds");
 	(void)bt_unpair(BT_ID_DEFAULT, NULL);
 }
 
@@ -237,6 +257,7 @@ static void save_state_gpio_callback(const struct device *port, struct gpio_call
 	ARG_UNUSED(port);
 	ARG_UNUSED(cb);
 	ARG_UNUSED(pins);
+	LOG_INF("Save-state GPIO falling edge");
 	k_work_submit(&save_state_work);
 }
 
@@ -267,6 +288,7 @@ void hw_save_state_trigger_init(void)
 		return;
 	}
 	save_state_trigger_inited = true;
+	LOG_INF("Save-state trigger initialized on P0.%d", SAVE_STATE_TRIGGER_PIN);
 }
 
 /* Battery measurement via ADC using zephyr,user io-channels[0]. */
