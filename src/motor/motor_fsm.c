@@ -234,7 +234,6 @@ void app_on_button_long(void)
 {
 	g_state.pairing_mode = true;
 	LOG_INF("Button long press -> pairing/factory reset");
-	led_flash_pairing();
 	app_factory_reset_schedule();
 }
 

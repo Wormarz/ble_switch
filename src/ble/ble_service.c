@@ -184,6 +184,65 @@ static const struct bt_data sd[] = {
 		sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
+static bool ble_any_bonded(void)
+{
+	bool has_bond = false;
+
+	void foreach_bond(const struct bt_bond_info *info, void *user_data)
+	{
+		bool *flag = user_data;
+		ARG_UNUSED(info);
+		*flag = true;
+	}
+
+	bt_foreach_bond(BT_ID_DEFAULT, foreach_bond, &has_bond);
+	return has_bond;
+}
+
+static void ble_conn_connected(struct bt_conn *conn, uint8_t err)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+	if (err) {
+		LOG_WRN("Connection failed (err %u) to %s", err, addr);
+		return;
+	}
+
+	LOG_INF("Connected: %s", addr);
+	/* Stop advertising indicator once a connection is established. */
+	led_adv_blink_stop();
+}
+
+static void ble_conn_disconnected(struct bt_conn *conn, uint8_t reason)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	LOG_INF("Disconnected: %s (reason 0x%02x)", addr, reason);
+
+	int err = ble_svc_advertise_start();
+	if (err) {
+		LOG_ERR("Restart advertising after disconnect failed: %d", err);
+		return;
+	}
+
+	/* If there is no existing bond yet, enable LED blink to indicate
+	 * pairing/advertising; otherwise keep LED off.
+	 */
+	if (!ble_any_bonded()) {
+		led_adv_blink_start();
+	} else {
+		led_adv_blink_stop();
+	}
+}
+
+static struct bt_conn_cb ble_conn_cbs = {
+	.connected = ble_conn_connected,
+	.disconnected = ble_conn_disconnected,
+};
+
 static void bt_ready(int err)
 {
 	if (err) {
@@ -201,7 +260,12 @@ static void bt_ready(int err)
 		LOG_ERR("Advertising start failed: %d", err);
 	} else {
 		LOG_INF("Advertising started successfully");
-		led_adv_blink_start();
+		/* Only blink if there is no bond yet (first-time pairing). */
+		if (!ble_any_bonded()) {
+			led_adv_blink_start();
+		} else {
+			led_adv_blink_stop();
+		}
 	}
 }
 
@@ -212,6 +276,8 @@ void ble_svc_init(void)
 #if defined(CONFIG_BT_APP_PASSKEY)
 	bt_conn_auth_cb_register(&auth_cb);
 #endif
+
+	bt_conn_cb_register(&ble_conn_cbs);
 
 	err = bt_enable(bt_ready);
 	if (err) {
