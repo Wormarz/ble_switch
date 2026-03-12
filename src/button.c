@@ -11,6 +11,7 @@ extern void app_on_button_short(void);
 extern void app_on_button_long(void);
 
 #define LONG_PRESS_MS 2000
+#define BUTTON_PRESSED_VAL 1
 
 #if DT_NODE_EXISTS(DT_ALIAS(sw0))
 #define SW0_NODE DT_ALIAS(sw0)
@@ -38,7 +39,7 @@ static void button_handler(const struct device *dev, struct gpio_callback *cb, u
 	ARG_UNUSED(pins);
 
 	int val = gpio_pin_get_dt(&button);
-	if (val == 0) {
+	if (val == BUTTON_PRESSED_VAL) {
 		/* Pressed: start long-press timer */
 		LOG_DBG("Button pressed");
 		long_press_fired = false;
