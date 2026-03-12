@@ -1,11 +1,10 @@
 /*
  * BLE Switch - main entry
- * Initializes app logic, BLE, button, timer; then idle.
+ * Initializes app logic, BLE, button, storage trigger; then idle.
  */
-#include "ble_svc.h"
+#include "ble_service.h"
 #include "button.h"
-#include "hw_glue.h"
-#include "timer_glue.h"
+#include "nvs_storage.h"
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 
@@ -23,8 +22,7 @@ int main(void)
 {
 	ble_svc_init();
 	button_init();
-	timer_glue_init();
-	hw_save_state_trigger_init();
+	nvs_storage_save_trigger_init();
 	k_sleep(K_FOREVER);
 
 	return 0;

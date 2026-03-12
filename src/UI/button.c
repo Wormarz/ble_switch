@@ -27,6 +27,14 @@ static volatile bool long_press_fired;
 static void long_press_expiry(struct k_timer *timer)
 {
 	ARG_UNUSED(timer);
+
+	/* Only treat as long-press if the button is still physically held down. */
+	int val = gpio_pin_get_dt(&button);
+	if (val != BUTTON_PRESSED_VAL) {
+		LOG_DBG("Long-press timer expired but button released; ignoring");
+		return;
+	}
+
 	long_press_fired = true;
 	LOG_INF("Button long-press timeout");
 	app_on_button_long();
@@ -66,3 +74,4 @@ void button_init(void)
 	gpio_init_callback(&button_cb, button_handler, BIT(button.pin));
 	gpio_add_callback(button.port, &button_cb);
 }
+

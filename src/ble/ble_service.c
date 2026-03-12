@@ -1,8 +1,9 @@
 /*
- * BLE GATT: Remote Mechanical Switch Service
- * - Switch Control: read/write, 1 byte 0=off, 1=on, 2=toggle
+ * BLE service implementation for the remote mechanical switch.
+ * This file contains the logic previously in src/ble_svc.c.
  */
-#include "ble_svc.h"
+
+#include "ble_service.h"
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/bluetooth/bluetooth.h>
@@ -21,6 +22,10 @@ extern uint8_t app_get_orientation(void);
 extern void app_set_orientation(uint8_t value);
 extern uint8_t app_get_battery_level_api(void);
 extern uint8_t app_get_error_state(void);
+
+/* LED control (advertising indication) */
+extern void led_adv_blink_start(void);
+extern void led_adv_blink_stop(void);
 
 /* Remote Mechanical Switch Service: 0x0001-... (custom 128-bit) */
 #define BT_UUID_REMOTE_SWITCH_SVC_VAL \
@@ -73,7 +78,7 @@ static const struct bt_conn_auth_cb auth_cb = {
 };
 #endif
 
-/* Simple error/status characteristic: exposes the current state/error code from Rust.
+/* Simple error/status characteristic:
  * 0 = Idle/OK, 1 = MovingToOn, 2 = MovingToOff, 3 = Error.
  */
 static ssize_t read_error_state(struct bt_conn *conn,
@@ -111,12 +116,12 @@ static ssize_t write_switch_ctrl(struct bt_conn *conn,
 
 	uint8_t val = *(const uint8_t *)buf;
 	switch (val) {
-		case 0:
-		case 1:
-		case 2:
-			break;
-		default:
-			return BT_GATT_ERR(BT_ATT_ERR_VALUE_NOT_ALLOWED);
+	case 0:
+	case 1:
+	case 2:
+		break;
+	default:
+		return BT_GATT_ERR(BT_ATT_ERR_VALUE_NOT_ALLOWED);
 	}
 
 	app_handle_switch_control(val);
@@ -187,8 +192,8 @@ static void bt_ready(int err)
 	}
 
 	if (IS_ENABLED(CONFIG_SETTINGS)) {
-        settings_load();
-    }
+		settings_load();
+	}
 
 	LOG_INF("bt_enable OK, starting advertising");
 	err = ble_svc_advertise_start();
@@ -196,6 +201,7 @@ static void bt_ready(int err)
 		LOG_ERR("Advertising start failed: %d", err);
 	} else {
 		LOG_INF("Advertising started successfully");
+		led_adv_blink_start();
 	}
 }
 
@@ -219,3 +225,4 @@ int ble_svc_advertise_start(void)
 	return bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad),
 			       sd, ARRAY_SIZE(sd));
 }
+

@@ -6,13 +6,22 @@ project(ble_switch)
 # Application sources (C)
 target_sources(app PRIVATE
   src/main.c
-  src/ble_svc.c
-  src/hw_glue.c
-  src/button.c
-  src/timer_glue.c
-  src/app_logic.c
+  src/ble/ble_service.c
+  src/motor/motor_driver.c
+  src/motor/motor_fsm.c
+  src/UI/button.c
+  src/UI/led.c
+  src/power/battery.c
+  src/power/sleep.c
+  src/storage/nvs_storage.c
 )
 target_include_directories(app PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/ble
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/motor
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/power
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/UI
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/storage
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
