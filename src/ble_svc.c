@@ -108,8 +108,17 @@ static ssize_t write_switch_ctrl(struct bt_conn *conn,
 	if (offset != 0 || len != 1) {
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
+
 	uint8_t val = *(const uint8_t *)buf;
-	LOG_INF("GATT Switch Control write: %u (0=off,1=on,2=toggle)", val);
+	switch (val) {
+		case 0:
+		case 1:
+		case 2:
+			break;
+		default:
+			return BT_GATT_ERR(BT_ATT_ERR_VALUE_NOT_ALLOWED);
+	}
+
 	app_handle_switch_control(val);
 	return len;
 }
@@ -131,9 +140,18 @@ static ssize_t write_orientation(struct bt_conn *conn,
 	if (offset != 0 || len != 1) {
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
+
 	uint8_t val = *(const uint8_t *)buf;
-	LOG_INF("GATT Orientation write: %u", val & 1);
-	app_set_orientation(val & 1);
+	switch (val) {
+	case 0:
+	case 1:
+		break;
+	default:
+		return BT_GATT_ERR(BT_ATT_ERR_VALUE_NOT_ALLOWED);
+	}
+
+	LOG_INF("GATT Orientation write: %u", val);
+	app_set_orientation(val);
 	return len;
 }
 
