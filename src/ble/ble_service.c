@@ -4,6 +4,7 @@
  */
 
 #include "ble_service.h"
+#include <errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/bluetooth/bluetooth.h>
@@ -184,6 +185,8 @@ static const struct bt_data sd[] = {
 		sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
+static struct k_work_delayable adv_restart_work;
+
 static bool ble_any_bonded(void)
 {
 	bool has_bond = false;
@@ -222,9 +225,30 @@ static void ble_conn_disconnected(struct bt_conn *conn, uint8_t reason)
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 	LOG_INF("Disconnected: %s (reason 0x%02x)", addr, reason);
 
+	/* Restart advertising from system workqueue context, with retries
+	 * on transient errors such as -ENOMEM.
+	 */
+	k_work_reschedule(&adv_restart_work, K_NO_WAIT);
+}
+
+static struct bt_conn_cb ble_conn_cbs = {
+	.connected = ble_conn_connected,
+	.disconnected = ble_conn_disconnected,
+};
+
+static void adv_restart_work_handler(struct k_work *work)
+{
+	ARG_UNUSED(work);
+
 	int err = ble_svc_advertise_start();
+	if (err == -ENOMEM || err == -EAGAIN) {
+		LOG_WRN("Restart advertising failed with transient error %d, retrying...", err);
+		(void)k_work_reschedule(&adv_restart_work, K_MSEC(200));
+		return;
+	}
+
 	if (err) {
-		LOG_ERR("Restart advertising after disconnect failed: %d", err);
+		LOG_ERR("Restart advertising failed: %d", err);
 		return;
 	}
 
@@ -237,11 +261,6 @@ static void ble_conn_disconnected(struct bt_conn *conn, uint8_t reason)
 		led_adv_blink_stop();
 	}
 }
-
-static struct bt_conn_cb ble_conn_cbs = {
-	.connected = ble_conn_connected,
-	.disconnected = ble_conn_disconnected,
-};
 
 static void bt_ready(int err)
 {
@@ -278,6 +297,8 @@ void ble_svc_init(void)
 #endif
 
 	bt_conn_cb_register(&ble_conn_cbs);
+
+	k_work_init_delayable(&adv_restart_work, adv_restart_work_handler);
 
 	err = bt_enable(bt_ready);
 	if (err) {
