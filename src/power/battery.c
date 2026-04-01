@@ -9,7 +9,9 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/adc.h>
 
-#if DT_NODE_EXISTS(DT_PATH(zephyr_user)) && DT_NODE_HAS_PROP(DT_PATH(zephyr_user), io_channels)
+#define DEV_STAGE 1
+
+#if DT_NODE_EXISTS(DT_PATH(zephyr_user)) && DT_NODE_HAS_PROP(DT_PATH(zephyr_user), io_channels) && !DEV_STAGE
 static const struct adc_dt_spec batt_adc_chan =
 	ADC_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), 0);
 

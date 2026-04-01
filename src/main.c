@@ -5,6 +5,7 @@
 #include "ble_service.h"
 #include "button.h"
 #include "nvs_storage.h"
+#include "led.h"
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 
@@ -20,6 +21,7 @@ SYS_INIT(ble_switch_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 int main(void)
 {
+	led_init();
 	ble_svc_init();
 	button_init();
 	nvs_storage_save_trigger_init();

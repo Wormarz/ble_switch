@@ -33,7 +33,7 @@ static void led_flash_ms(uint32_t ms)
 		k_timer_init(&led_off_timer, led_off_handler, NULL);
 		led_timer_init_done = true;
 	}
-	gpio_pin_configure_dt(&led, GPIO_OUTPUT_INACTIVE);
+
 	gpio_pin_set_dt(&led, 1);
 	k_timer_start(&led_off_timer, K_MSEC(ms), K_NO_WAIT);
 }
@@ -77,7 +77,17 @@ void led_adv_blink_stop(void)
 	if (!gpio_is_ready_dt(&led)) {
 		return;
 	}
+
+	gpio_pin_set_dt(&led, 0);
 	k_timer_stop(&led_adv_blink_timer);
+}
+
+void led_init(void)
+{
+	if (!gpio_is_ready_dt(&led)) {
+		return;
+	}
+	gpio_pin_configure_dt(&led, GPIO_OUTPUT_INACTIVE);
 }
 
 #else /* !DT_ALIAS(led0) */
